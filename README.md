@@ -1,74 +1,102 @@
-# Welcome to your Lovable project
+# SymptoMap
 
-## Project info
+A real-time global disease surveillance platform. Live map visualizes symptom clusters, AI analyzes reports, and a conversational assistant helps users with safe, multilingual guidance.
 
-**URL**: https://lovable.dev/projects/d7b966be-c044-41d4-a01e-211013802708
+## Features
 
-## How can I edit this code?
+- Live Mapbox map with clusters, heatmap, time-lapse slider, spread lines
+- Symptom reporting with voice input, severity slider, demographics
+- Backend API (Express + Postgres) for reports and outbreaks
+- AI analysis via OpenAI (chatbot with safety, remedies, multilingual, vision)
+- Annotations (shared via Supabase or local), CSV export, printable reports
+- Officials dashboard with metrics, alerts, and annotation tools
+- In-app clinics panel (OSM Overpass) and “Find a clinic near me” flow
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- Frontend: React 18, Vite, TypeScript, Tailwind, shadcn-ui, Framer Motion, Mapbox GL
+- State: Zustand, Supabase client (for optional shared annotations)
+- Backend: Node.js, Express, PostgreSQL, OpenAI API, Redis (optional)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d7b966be-c044-41d4-a01e-211013802708) and start prompting.
+## Monorepo Layout
 
-Changes made via Lovable will be committed automatically to this repo.
+- `src/` — React app
+- `backend/` — Express server and migrations
+- `supabase/functions/` — Optional edge functions (if you use Supabase path)
 
-**Use your preferred IDE**
+## Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18+
+- npm
+- Mapbox access token (for map)
+- PostgreSQL 14+ (Docker example below)
+- OpenAI API key (for chatbot and analysis)
+- Redis (optional) for chatbot conversation state
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Quick Start (Frontend)
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# In project root
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Enter your Mapbox token in the UI prompt on first load.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Quick Start (Backend)
 
-**Use GitHub Codespaces**
+```bash
+# Start Postgres via Docker (example)
+docker run --name symptomap-db -e POSTGRES_PASSWORD=hackathon \
+  -e POSTGRES_USER=postgres -e POSTGRES_DB=symptomap \
+  -p 5432:5432 -d postgres:15
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Backend
+cd backend
+npm install
+# .env
+# DATABASE_URL=postgres://postgres:hackathon@localhost:5432/symptomap
+# OPENAI_API_KEY=sk-...
+# optional: REDIS_URL=redis://localhost:6379
+node scripts/migrate.js
+npm run dev
+```
 
-## What technologies are used for this project?
+The frontend is configured to proxy `/api/*` to `http://localhost:8787`.
 
-This project is built with:
+## Environment Variables
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Frontend: none required; Mapbox token is stored locally in the app
+- Backend:
+  - `DATABASE_URL` — Postgres connection URL
+  - `OPENAI_API_KEY` — OpenAI API Key
+  - `REDIS_URL` — optional for chatbot session state
+  - `PORT` — optional (default 8787)
 
-## How can I deploy this project?
+## API
 
-Simply open [Lovable](https://lovable.dev/projects/d7b966be-c044-41d4-a01e-211013802708) and click on Share -> Publish.
+- POST `/api/reports` — create symptom report
+- GET `/api/reports` — list last 7 days of reports
+- GET `/api/outbreaks` — GeoJSON of outbreaks (placeholder; replace with clustering)
+- POST `/api/chatbot` — conversational assistant (message, conversationId, language, optional imageDataUrl)
 
-## Can I connect a custom domain to my Lovable project?
+## Security & Safety
 
-Yes, you can!
+- Chatbot has strict safety rules and emergency detection
+- Input validation with zod on the server
+- Role-gated Officials Panel (via Supabase user metadata) on frontend
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Development Tasks
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-"# Symptomap" 
+- Replace placeholder outbreaks logic with DBSCAN + risk score
+- Add RLS-protected shared annotations if using Supabase
+- Improve PDF export (headless renderer) if required
+
+## Scripts
+
+- Frontend: `npm run dev`, `npm run build`, `npm run preview`
+- Backend: `npm run dev`, `npm run migrate`, `npm start`
+
+## License
+
+MIT License. See `LICENSE`. 

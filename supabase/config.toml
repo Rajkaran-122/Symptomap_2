@@ -1,0 +1,13 @@
+project_id = "rzfctxwjngtjzhswpojx"
+
+[functions.analyze-symptoms]
+verify_jwt = false
+
+[functions.submit-symptoms]
+verify_jwt = false
+
+[functions.detect-outbreaks]
+verify_jwt = false
+
+[functions.get-outbreaks]
+verify_jwt = false

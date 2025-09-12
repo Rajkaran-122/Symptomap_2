@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SymptoMap Medical Design System - Optimized for pandemic detection interface */
+
+@layer base {
+  :root {
+    /* Medical Blue Palette */
+    --background: 210 25% 98%;
+    --foreground: 210 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 15%;
+
+    /* Primary: Medical Blue - Trust and Healthcare */
+    --primary: 208 82% 51%;
+    --primary-glow: 208 82% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Soft Medical Gray */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 210 15% 25%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 210 10% 55%;
+
+    --accent: 208 50% 94%;
+    --accent-foreground: 208 82% 35%;
+
+    /* Alert System Colors */
+    --normal: 142 76% 36%;          /* Green - Normal levels */
+    --unusual: 48 96% 53%;          /* Yellow - Unusual activity */
+    --concerning: 25 95% 53%;       /* Orange - Concerning pattern */
+    --critical: 0 84% 60%;          /* Red - Critical outbreak */
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 25% 96%;
+    --ring: 208 82% 51%;
+
+    --radius: 0.75rem;
+
+    /* Medical Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-alert: linear-gradient(135deg, hsl(var(--concerning)), hsl(var(--critical)));
+    --gradient-safe: linear-gradient(135deg, hsl(var(--normal)), hsl(var(--primary-glow)));
+    --gradient-background: linear-gradient(180deg, hsl(var(--background)), hsl(210 25% 96%));
+
+    /* Medical Shadows */
+    --shadow-medical: 0 4px 20px -8px hsl(var(--primary) / 0.25);
+    --shadow-alert: 0 8px 32px -12px hsl(var(--critical) / 0.4);
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.3);
+
+    /* Animation Timing */
+    --transition-medical: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --pulse-duration: 2s;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark mode for medical interface - easier on eyes during long surveillance */
+    --background: 210 15% 8%;
+    --foreground: 210 20% 95%;
+
+    --card: 210 15% 10%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 210 15% 10%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 208 82% 65%;
+    --primary-glow: 208 82% 75%;
+    --primary-foreground: 210 15% 8%;
+
+    --secondary: 210 15% 15%;
+    --secondary-foreground: 210 20% 85%;
+
+    --muted: 210 15% 12%;
+    --muted-foreground: 210 10% 65%;
+
+    --accent: 208 30% 15%;
+    --accent-foreground: 208 82% 75%;
+
+    /* Enhanced alert colors for dark mode */
+    --normal: 142 60% 45%;
+    --unusual: 48 80% 60%;
+    --concerning: 25 80% 60%;
+    --critical: 0 70% 65%;
+
+    --destructive: 0 70% 65%;
+    --destructive-foreground: 210 15% 8%;
+
+    --border: 210 15% 18%;
+    --input: 210 15% 12%;
+    --ring: 208 82% 65%;
+
+    /* Enhanced shadows for dark mode */
+    --shadow-medical: 0 4px 20px -8px hsl(var(--primary) / 0.4);
+    --shadow-alert: 0 8px 32px -12px hsl(var(--critical) / 0.5);
+    --shadow-glow: 0 0 50px hsl(var(--primary-glow) / 0.4);
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background: var(--gradient-background);
+  }
+
+  /* Medical UI animations */
+  .pulse-medical {
+    animation: pulse-medical var(--pulse-duration) cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .glow-medical {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .outbreak-pulse {
+    animation: outbreak-pulse 1.5s ease-in-out infinite alternate;
+  }
+}
+
+@layer components {
+  /* Medical Status Indicators */
+  .status-normal {
+    @apply bg-green-500/20 text-green-600 border-green-500/30;
+  }
+
+  .status-unusual {
+    @apply bg-yellow-500/20 text-yellow-600 border-yellow-500/30;
+  }
+
+  .status-concerning {
+    @apply bg-orange-500/20 text-orange-600 border-orange-500/30;
+  }
+
+  .status-critical {
+    @apply bg-red-500/20 text-red-600 border-red-500/30;
+  }
+
+  /* Heat map colors */
+  .heat-normal { background: hsl(var(--normal) / 0.8); }
+  .heat-unusual { background: hsl(var(--unusual) / 0.8); }
+  .heat-concerning { background: hsl(var(--concerning) / 0.8); }
+  .heat-critical { background: hsl(var(--critical) / 0.8); }
+}
+
+@keyframes pulse-medical {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes outbreak-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
+}
