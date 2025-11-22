@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with PostGIS and TimescaleDB
+  postgres:
+    image: timescale/timescaledb-ha:pg15-latest
+    container_name: symptomap-postgres-prod
+    environment:
+      POSTGRES_DB: symptomap
+      POSTGRES_USER: symptomap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TIMESCALEDB_TELEMETRY: off
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./backend/src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U symptomap -d symptomap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: symptomap-redis-prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+      DATABASE_URL: postgresql://symptomap:${POSTGRES_PASSWORD}@postgres:5432/symptomap
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN}
+      LOG_LEVEL: info
+      ENABLE_METRICS: true
+    ports:
+      - "8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Frontend Production Build
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+      VITE_WS_URL: ${VITE_WS_URL}
+      VITE_MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN}
+      VITE_ENVIRONMENT: production
+      VITE_VERSION: 1.0.0
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data_prod:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+    volumes:
+      - grafana_data_prod:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Log aggregation
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data_prod:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+  # Log collection
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log:ro
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - symptomap-network-prod
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  prometheus_data_prod:
+  grafana_data_prod:
+  loki_data_prod:
+
+networks:
+  symptomap-network-prod:
+    driver: bridge

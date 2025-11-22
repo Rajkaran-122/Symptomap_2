@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: symptomap
+  labels:
+    name: symptomap
+    app: symptomap
+    environment: production

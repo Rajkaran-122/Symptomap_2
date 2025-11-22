@@ -1,0 +1,308 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+  POSTGRES_VERSION: '15'
+  REDIS_VERSION: '7'
+
+jobs:
+  # Lint and format check
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Run ESLint (Backend)
+        run: cd backend && npm run lint
+
+      - name: Run ESLint (Frontend)
+        run: cd frontend && npm run lint
+
+      - name: Check TypeScript (Backend)
+        run: cd backend && npm run type-check
+
+      - name: Check TypeScript (Frontend)
+        run: cd frontend && npm run type-check
+
+      - name: Check formatting
+        run: |
+          cd backend && npm run format:check
+          cd ../frontend && npm run format:check
+
+  # Unit tests
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Run unit tests (Backend)
+        run: cd backend && npm run test:unit
+
+      - name: Run unit tests (Frontend)
+        run: cd frontend && npm run test:unit
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage/lcov.info,./frontend/coverage/lcov.info
+
+  # Integration tests
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg15-latest
+        env:
+          POSTGRES_DB: symptomap_test
+          POSTGRES_USER: symptomap
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Run database migrations
+        run: cd backend && npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://symptomap:password@localhost:5432/symptomap_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run integration tests
+        run: cd backend && npm run test:integration
+        env:
+          DATABASE_URL: postgresql://symptomap:password@localhost:5432/symptomap_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+
+  # Build and test Docker images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, test-integration]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: symptomap-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.dev
+          push: false
+          tags: symptomap-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # End-to-end tests
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+          npm install -g @playwright/test
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Start services
+        run: |
+          docker-compose up -d postgres redis
+          sleep 10
+          cd backend && npm run db:migrate
+          cd backend && npm run dev &
+          cd frontend && npm run dev &
+          sleep 15
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          DATABASE_URL: postgresql://symptomap:password@localhost:5432/symptomap
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  # Security scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run npm audit
+        run: |
+          cd backend && npm audit --audit-level moderate
+          cd ../frontend && npm audit --audit-level moderate
+
+  # Performance tests
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Start services
+        run: |
+          docker-compose up -d postgres redis
+          sleep 10
+          cd backend && npm run db:migrate
+          cd backend && npm run dev &
+          cd frontend && npm run dev &
+          sleep 15
+
+      - name: Run performance tests
+        run: |
+          cd backend && npm run test:performance
+        env:
+          DATABASE_URL: postgresql://symptomap:password@localhost:5432/symptomap
+          REDIS_URL: redis://localhost:6379
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test-e2e, security, performance]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your staging deployment commands here
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test-e2e, security, performance]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Add your production deployment commands here

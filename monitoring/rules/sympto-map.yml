@@ -1,0 +1,121 @@
+groups:
+- name: sympto-map-alerts
+  rules:
+  # High error rate
+  - alert: HighErrorRate
+    expr: |
+      (
+        sum(rate(http_requests_total{job="sympto-map-api",status=~"5.."}[5m])) /
+        sum(rate(http_requests_total{job="sympto-map-api"}[5m]))
+      ) > 0.05
+    for: 2m
+    labels:
+      severity: critical
+      team: backend
+    annotations:
+      summary: "High error rate detected"
+      description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+      runbook_url: "https://docs.symptomap.com/runbooks/high-error-rate"
+
+  # Slow response times
+  - alert: SlowResponseTimes
+    expr: |
+      histogram_quantile(0.95, 
+        rate(http_request_duration_seconds_bucket{job="sympto-map-api"}[5m])
+      ) > 2
+    for: 3m
+    labels:
+      severity: warning
+      team: backend
+    annotations:
+      summary: "API response time is slow"
+      description: "95th percentile response time is {{ $value }}s"
+
+  # High memory usage
+  - alert: HighMemoryUsage
+    expr: |
+      (
+        node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+      ) / node_memory_MemTotal_bytes > 0.9
+    for: 5m
+    labels:
+      severity: warning
+      team: infrastructure
+    annotations:
+      summary: "High memory usage detected"
+      description: "Memory usage is {{ $value | humanizePercentage }}"
+
+  # High CPU usage
+  - alert: HighCPUUsage
+    expr: |
+      100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+      team: infrastructure
+    annotations:
+      summary: "High CPU usage detected"
+      description: "CPU usage is {{ $value }}%"
+
+  # Database connections high
+  - alert: DatabaseConnectionsHigh
+    expr: |
+      pg_stat_activity_count{job="postgres"} > 80
+    for: 5m
+    labels:
+      severity: warning
+      team: infrastructure
+    annotations:
+      summary: "High number of database connections"
+      description: "Database has {{ $value }} active connections"
+
+  # Redis memory usage
+  - alert: RedisMemoryUsage
+    expr: |
+      redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+    for: 5m
+    labels:
+      severity: warning
+      team: infrastructure
+    annotations:
+      summary: "Redis memory usage is high"
+      description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+  # WebSocket connections drop
+  - alert: WebSocketConnectionsDrop
+    expr: |
+      (websocket_connections_active{job="sympto-map-api"} - 
+       websocket_connections_active{job="sympto-map-api"} offset 5m) < -100
+    for: 1m
+    labels:
+      severity: warning
+      team: backend
+    annotations:
+      summary: "Significant drop in WebSocket connections"
+      description: "WebSocket connections dropped by {{ $value }} in the last 5 minutes"
+
+  # ML prediction latency
+  - alert: MLPredictionLatencyHigh
+    expr: |
+      histogram_quantile(0.90, 
+        rate(ml_prediction_duration_seconds_bucket[5m])
+      ) > 5
+    for: 2m
+    labels:
+      severity: warning
+      team: ml-ops
+    annotations:
+      summary: "ML prediction latency is high"
+      description: "90th percentile ML prediction latency is {{ $value }}s"
+
+  # Service down
+  - alert: ServiceDown
+    expr: |
+      up{job="sympto-map-api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      team: backend
+    annotations:
+      summary: "SymptoMap API service is down"
+      description: "The API service has been down for more than 1 minute"

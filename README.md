@@ -1,102 +1,364 @@
-# SymptoMap
+# SymptoMap MVP - Real-time Disease Surveillance Platform
 
-A real-time global disease surveillance platform. Live map visualizes symptom clusters, AI analyzes reports, and a conversational assistant helps users with safe, multilingual guidance.
+![SymptoMap Logo](https://img.shields.io/badge/SymptoMap-MVP-blue?style=for-the-badge&logo=health)
 
-## Features
+A comprehensive real-time disease surveillance and outbreak prediction platform built with modern web technologies. SymptoMap provides interactive mapping, AI-powered predictions, and collaborative intelligence for public health professionals.
 
-- Live Mapbox map with clusters, heatmap, time-lapse slider, spread lines
-- Symptom reporting with voice input, severity slider, demographics
-- Backend API (Express + Postgres) for reports and outbreaks
-- AI analysis via OpenAI (chatbot with safety, remedies, multilingual, vision)
-- Annotations (shared via Supabase or local), CSV export, printable reports
-- Officials dashboard with metrics, alerts, and annotation tools
-- In-app clinics panel (OSM Overpass) and “Find a clinic near me” flow
+## 🚀 Quick Start
 
-## Tech Stack
+### Prerequisites
 
-- Frontend: React 18, Vite, TypeScript, Tailwind, shadcn-ui, Framer Motion, Mapbox GL
-- State: Zustand, Supabase client (for optional shared annotations)
-- Backend: Node.js, Express, PostgreSQL, OpenAI API, Redis (optional)
+- Node.js 18+ 
+- Docker & Docker Compose
+- PostgreSQL 15+ with PostGIS
+- Redis 7+
+- Mapbox API key
 
-## Monorepo Layout
+### Installation
 
-- `src/` — React app
-- `backend/` — Express server and migrations
-- `supabase/functions/` — Optional edge functions (if you use Supabase path)
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Rajkaran-122/Symptomap.git
+   cd Symptomap
+   ```
 
-## Prerequisites
+2. **Install dependencies**
+   ```bash
+   npm run setup
+   ```
 
-- Node.js 18+
-- npm
-- Mapbox access token (for map)
-- PostgreSQL 14+ (Docker example below)
-- OpenAI API key (for chatbot and analysis)
-- Redis (optional) for chatbot conversation state
+3. **Configure environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your API keys and configuration
+   ```
 
-## Quick Start (Frontend)
+4. **Start development environment**
+   ```bash
+   docker-compose up -d postgres redis
+   npm run dev
+   ```
 
-```bash
-# In project root
-npm install
-npm run dev
+5. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8787
+   - API Docs: http://localhost:8787/api/v1/docs
+
+## 🏗️ Architecture
+
+### Tech Stack
+
+**Frontend**
+- React 18 + TypeScript + Vite
+- Zustand (state management)
+- Mapbox GL JS (mapping)
+- Recharts (visualizations)
+- Tailwind CSS (styling)
+- Socket.io (real-time)
+
+**Backend**
+- Node.js + Express + TypeScript
+- PostgreSQL + PostGIS + TimescaleDB
+- Redis (caching)
+- Socket.io (WebSocket)
+
+**Infrastructure**
+- Docker containers
+- Nginx reverse proxy
+- Prometheus + Grafana monitoring
+
+### System Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   React Frontend│    │   Express API    │    │   PostgreSQL    │
+│   (Port 3000)   │◄──►│   (Port 8787)    │◄──►│   + PostGIS     │
+│                 │    │                  │    │   + TimescaleDB │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Mapbox GL JS  │    │   Socket.io      │    │   Redis Cache   │
+│   (Mapping)     │    │   (Real-time)    │    │   (Sessions)    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-Enter your Mapbox token in the UI prompt on first load.
+## 📊 Features
 
-## Quick Start (Backend)
+### Core Features (MVP)
 
-```bash
-# Start Postgres via Docker (example)
-docker run --name symptomap-db -e POSTGRES_PASSWORD=hackathon \
-  -e POSTGRES_USER=postgres -e POSTGRES_DB=symptomap \
-  -p 5432:5432 -d postgres:15
+- **🗺️ Real-time Interactive Map**
+  - Mapbox GL JS integration
+  - Live outbreak visualization
+  - Severity-based color coding
+  - Cluster detection and rendering
 
-# Backend
-cd backend
-npm install
-# .env
-# DATABASE_URL=postgres://postgres:hackathon@localhost:5432/symptomap
-# OPENAI_API_KEY=sk-...
-# optional: REDIS_URL=redis://localhost:6379
-node scripts/migrate.js
-npm run dev
+- **⏰ Time-lapse System**
+  - 30-day historical playback
+  - Animated disease progression
+  - Play/pause/scrub controls
+  - Speed adjustment (0.5x - 8x)
+
+- **🤖 ML Predictions**
+  - 7-day outbreak forecasts
+  - Confidence intervals
+  - Risk level assessment
+  - Model performance metrics
+
+- **🔍 Advanced Filtering**
+  - Disease type filtering
+  - Severity level selection
+  - Geographic bounds
+  - Time window controls
+
+- **📡 Real-time Updates**
+  - WebSocket connections
+  - Live data streaming
+  - Collaborative annotations
+  - System notifications
+
+### Performance Targets
+
+- **API Response**: <200ms P95
+- **Map Rendering**: <50ms initial load
+- **WebSocket Latency**: <100ms
+- **Concurrent Users**: 1000+
+- **Data Points**: 100K+ with smooth interaction
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+SymptoMap/
+├── frontend/                 # React application
+│   ├── src/
+│   │   ├── components/      # UI components
+│   │   ├── services/        # API clients
+│   │   ├── store/          # Zustand store
+│   │   └── types/          # TypeScript types
+│   └── package.json
+├── backend/                 # Express API server
+│   ├── src/
+│   │   ├── routes/         # API routes
+│   │   ├── services/       # Business logic
+│   │   ├── middleware/     # Express middleware
+│   │   ├── database/       # DB connection
+│   │   └── websocket/      # WebSocket handlers
+│   └── package.json
+├── monitoring/             # Prometheus/Grafana config
+├── docker-compose.yml     # Development environment
+└── README.md
 ```
 
-The frontend is configured to proxy `/api/*` to `http://localhost:8787`.
+### Available Scripts
 
-## Environment Variables
+```bash
+# Development
+npm run dev              # Start both frontend and backend
+npm run dev:frontend     # Start frontend only
+npm run dev:backend      # Start backend only
 
-- Frontend: none required; Mapbox token is stored locally in the app
-- Backend:
-  - `DATABASE_URL` — Postgres connection URL
-  - `OPENAI_API_KEY` — OpenAI API Key
-  - `REDIS_URL` — optional for chatbot session state
-  - `PORT` — optional (default 8787)
+# Building
+npm run build           # Build both applications
+npm run build:frontend  # Build frontend
+npm run build:backend   # Build backend
 
-## API
+# Testing
+npm run test            # Run all tests
+npm run test:frontend   # Frontend tests
+npm run test:backend    # Backend tests
+npm run test:e2e        # End-to-end tests
 
-- POST `/api/reports` — create symptom report
-- GET `/api/reports` — list last 7 days of reports
-- GET `/api/outbreaks` — GeoJSON of outbreaks (placeholder; replace with clustering)
-- POST `/api/chatbot` — conversational assistant (message, conversationId, language, optional imageDataUrl)
+# Database
+npm run db:migrate      # Run database migrations
+npm run db:seed         # Seed with sample data
+npm run db:reset        # Reset database
 
-## Security & Safety
+# Deployment
+npm run deploy:staging  # Deploy to staging
+npm run deploy:production # Deploy to production
+```
 
-- Chatbot has strict safety rules and emergency detection
-- Input validation with zod on the server
-- Role-gated Officials Panel (via Supabase user metadata) on frontend
+### Environment Variables
 
-## Development Tasks
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/symptomap
+REDIS_URL=redis://localhost:6379
 
-- Replace placeholder outbreaks logic with DBSCAN + risk score
-- Add RLS-protected shared annotations if using Supabase
-- Improve PDF export (headless renderer) if required
+# API Configuration
+NODE_ENV=development
+PORT=8787
+CORS_ORIGIN=http://localhost:3000
 
-## Scripts
+# External Services
+MAPBOX_ACCESS_TOKEN=your-mapbox-token
+OPENAI_API_KEY=your-openai-key
 
-- Frontend: `npm run dev`, `npm run build`, `npm run preview`
-- Backend: `npm run dev`, `npm run migrate`, `npm start`
+# Security
+JWT_SECRET=your-jwt-secret
+JWT_REFRESH_SECRET=your-refresh-secret
+```
 
-## License
+## 📡 API Documentation
 
-MIT License. See `LICENSE`. 
+### Core Endpoints
+
+#### Outbreaks
+```http
+GET /api/v1/outbreaks?lat_min=40.0&lat_max=41.0&lng_min=-74.0&lng_max=-73.0&days=30
+POST /api/v1/outbreaks
+GET /api/v1/outbreaks/:id
+PUT /api/v1/outbreaks/:id
+DELETE /api/v1/outbreaks/:id
+```
+
+#### Predictions
+```http
+POST /api/v1/predictions
+GET /api/v1/predictions/:id
+GET /api/v1/predictions/models/list
+```
+
+#### Health & Metrics
+```http
+GET /api/v1/health
+GET /api/v1/health/ready
+GET /api/v1/health/live
+GET /api/v1/metrics
+```
+
+### WebSocket Events
+
+```javascript
+// Connect to WebSocket
+const socket = io('ws://localhost:8787');
+
+// Subscribe to map region
+socket.emit('map:subscribe', {
+  north: 41.0, south: 40.0,
+  east: -73.0, west: -74.0
+});
+
+// Listen for updates
+socket.on('outbreak:created', (outbreak) => {
+  console.log('New outbreak:', outbreak);
+});
+
+socket.on('prediction:ready', (prediction) => {
+  console.log('Prediction ready:', prediction);
+});
+```
+
+## 🚀 Deployment
+
+### Docker Deployment
+
+```bash
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Scale services
+docker-compose up -d --scale backend=3
+```
+
+### Production Deployment
+
+```bash
+# Build production images
+docker-compose -f docker-compose.prod.yml build
+
+# Deploy to production
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes Deployment
+
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f kubernetes/
+
+# Check deployment status
+kubectl get pods -n symptomap
+
+# Access services
+kubectl port-forward svc/symptomap-frontend 3000:80
+```
+
+## 📈 Monitoring
+
+### Prometheus Metrics
+
+- **API Performance**: Response times, request rates
+- **Database Metrics**: Connection pools, query performance
+- **WebSocket Metrics**: Active connections, message rates
+- **System Metrics**: CPU, memory, disk usage
+
+### Grafana Dashboards
+
+- **System Overview**: High-level system health
+- **API Performance**: Request rates, response times
+- **Database Performance**: Query performance, connections
+- **Real-time Metrics**: WebSocket connections, active users
+
+Access Grafana at http://localhost:3001 (admin/admin)
+
+## 🔒 Security
+
+### Implemented Security Measures
+
+- **Input Validation**: Zod schema validation
+- **Rate Limiting**: Express rate limiting
+- **CORS Protection**: Configured CORS policies
+- **Security Headers**: Helmet.js security headers
+- **SQL Injection Prevention**: Parameterized queries
+- **XSS Protection**: Input sanitization
+
+### Compliance
+
+- **GDPR Ready**: Data protection measures
+- **HIPAA Compatible**: Audit logging and encryption
+- **Security Monitoring**: Comprehensive audit trails
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Write comprehensive tests
+- Document API changes
+- Follow conventional commit messages
+- Ensure all CI checks pass
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: [docs.symptomap.com](https://docs.symptomap.com)
+- **Issues**: [GitHub Issues](https://github.com/Rajkaran-122/Symptomap/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Rajkaran-122/Symptomap/discussions)
+- **Email**: support@symptomap.com
+
+## 🙏 Acknowledgments
+
+- Mapbox for mapping services
+- TimescaleDB for time-series optimization
+- The open-source community for amazing tools
+- Public health professionals for domain expertise
+
+---
+
+**Built with ❤️ for public health professionals worldwide**"# Symptomap_2" 

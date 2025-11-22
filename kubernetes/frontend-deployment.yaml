@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: symptomap-frontend
+  namespace: symptomap
+  labels:
+    app: symptomap-frontend
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: symptomap-frontend
+  template:
+    metadata:
+      labels:
+        app: symptomap-frontend
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: symptomap-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: VITE_API_URL
+          value: "https://api.symptomap.com"
+        - name: VITE_WS_URL
+          value: "wss://api.symptomap.com"
+        - name: VITE_MAPBOX_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: MAPBOX_ACCESS_TOKEN
+        - name: VITE_ENVIRONMENT
+          value: "production"
+        - name: VITE_VERSION
+          value: "1.0.0"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 10
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

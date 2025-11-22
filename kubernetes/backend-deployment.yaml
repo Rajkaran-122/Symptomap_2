@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: symptomap-backend
+  namespace: symptomap
+  labels:
+    app: symptomap-backend
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: symptomap-backend
+  template:
+    metadata:
+      labels:
+        app: symptomap-backend
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: symptomap-backend:latest
+        ports:
+        - containerPort: 8787
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: REDIS_URL
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: JWT_SECRET
+        - name: JWT_REFRESH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: JWT_REFRESH_SECRET
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: OPENAI_API_KEY
+        - name: MAPBOX_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: symptomap-secrets
+              key: MAPBOX_ACCESS_TOKEN
+        envFrom:
+        - configMapRef:
+            name: symptomap-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8787
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8787
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8787
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 10
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
