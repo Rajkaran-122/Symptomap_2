@@ -1,42 +1,50 @@
 @echo off
-echo Starting SymptoMap MVP Development Environment...
+REM SymptoMap Development Environment Startup Script
+REM This script starts the full dev environment with proper configuration
 
-REM Check if Docker is running
-docker version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Error: Docker is not running. Please start Docker Desktop first.
-    pause
-    exit /b 1
+echo.
+echo ╔════════════════════════════════════════════════════════════╗
+echo ║          SymptoMap Application - Dev Environment           ║
+echo ║              Starting Backend ^& Frontend...                 ║
+echo ╚════════════════════════════════════════════════════════════╝
+echo.
+
+REM Set NODE_OPTIONS to suppress deprecation warnings
+set NODE_OPTIONS=--no-deprecation
+
+REM Check if Redis is running
+echo Checking Redis status...
+"C:\Redis\redis-cli.exe" ping >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: Redis is not running. Starting Redis...
+    start "Redis Server" /MIN "C:\Redis\redis-server.exe"
+    timeout /t 2 /nobreak
+) else (
+    echo OK: Redis is running
 )
 
-REM Start PostgreSQL and Redis
-echo Starting database services...
-docker-compose up -d postgres redis
+REM Check if PostgreSQL is running
+echo Checking PostgreSQL status...
+netstat -ano | findstr ":5432" >nul
+if errorlevel 1 (
+    echo WARNING: PostgreSQL is not running. Please start PostgreSQL service.
+    pause
+    exit /b 1
+) else (
+    echo OK: PostgreSQL is running
+)
 
-REM Wait for services to be ready
-echo Waiting for services to be ready...
-timeout /t 10 /nobreak >nul
-
-REM Run database migrations
-echo Running database migrations...
-cd backend
-npm run db:migrate
-cd ..
-
-REM Start backend in background
-echo Starting backend API server...
-start "Backend API" cmd /k "cd backend && npm run dev"
-
-REM Wait a moment for backend to start
-timeout /t 5 /nobreak >nul
-
-REM Start frontend
-echo Starting frontend development server...
-start "Frontend" cmd /k "cd frontend && npm run dev"
+REM Start the development environment
+echo.
+echo Starting development servers...
+echo.
+cd "%~dp0"
+npm run dev
 
 echo.
 echo 🎉 SymptoMap MVP Development Environment is ready!
 echo.
+
 echo 📍 Access points:
 echo    Frontend: http://localhost:3000
 echo    Backend API: http://localhost:8787
